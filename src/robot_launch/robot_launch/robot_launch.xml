@@ -1,4 +1,5 @@
 <launch>
     <node pkg="robot" exec="robot"/>
     <node pkg="kitchen" exec="kitchen"/>
+    <node pkg="customer" exec="customer"/>
 </launch>
