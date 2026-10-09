@@ -3,6 +3,8 @@
 
 #include "rclcpp/rclcpp.hpp"
 #include "interface/srv/order.hpp"
+#include "../../kitchen/include/kitchen/Menu.hpp"
+#include "../../kitchen/include/kitchen/Logger.hpp"
 
 using namespace std::chrono_literals;
 
@@ -16,52 +18,71 @@ public:
   {
     order_client_ = this->create_client<Order>(
         "order");
+
+    timer_ = this->create_wall_timer(
+        std::chrono::seconds(5),
+        std::bind(&CustomerNode::timer_callback, this));
   }
 
   void send_request(std::string name)
   {
-    // Wait for the server
-    while (!order_client_->wait_for_service(std::chrono::seconds(1)))
+    if (!order_client_->service_is_ready())
     {
-      if (!rclcpp::ok())
-      {
-        RCLCPP_ERROR(this->get_logger(), "ROS shutdown");
-        return;
-      }
-
-      RCLCPP_INFO(this->get_logger(), "Waiting for order service...");
+      RCLCPP_WARN(this->get_logger(), "Waiting for order service...");
+      return;
     }
 
-    // Create request
     auto request = std::make_shared<Order::Request>();
-
     request->name = name;
+    std::string sent_name = request->name;
 
-    // Send request
-    auto future = order_client_->async_send_request(request);
+    order_client_->async_send_request(
+        request,
+        [this, sent_name](rclcpp::Client<Order>::SharedFuture future)
+        {
+          auto response = future.get();
+          if (!response->success)
+          {
+            RCLCPP_INFO(this->get_logger(), "oh sorry we can not provide your order please order something else ...!");
+          }
+        });
+  }
 
-    // Wait for response
-    if (rclcpp::spin_until_future_complete(this->get_node_base_interface(), future) == rclcpp::FutureReturnCode::SUCCESS)
+  // change order every loop
+  std::string get_order()
+  {
+    std::string order_name = menu.at(order_counter_).name;
+
+    // order was finished !
+    while (menu.at(order_counter_).remaining <= 0)
     {
-      auto response = future.get();
+      RCLCPP_WARN(this->get_logger(), "sorry we are out of item %s !", order_name.c_str());
+      order_counter_ = (order_counter_ + 1) % menu.size();
+      order_name = menu.at(order_counter_).name;
     }
-    else
-    {
-      RCLCPP_ERROR(this->get_logger(), "Failed to call service");
-    }
+
+    return order_name;
   }
 
 private:
+  void timer_callback()
+  {
+    send_request(get_order());
+  }
+
   rclcpp::Client<Order>::SharedPtr order_client_;
+  rclcpp::TimerBase::SharedPtr timer_;
+
+  int order_counter_ = 0;
 };
 
 int main(int argc, char *argv[])
 {
   rclcpp::init(argc, argv);
 
-  auto client = std::make_shared<CustomerNode>();
+  auto customer_node = std::make_shared<CustomerNode>();
 
-  client->send_request("burger");
+  rclcpp::spin(customer_node);
 
   rclcpp::shutdown();
 

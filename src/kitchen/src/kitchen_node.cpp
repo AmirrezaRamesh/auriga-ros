@@ -7,6 +7,7 @@
 #include <deque>
 
 #include "../include/kitchen/Logger.hpp"
+#include "../include/kitchen/Menu.hpp"
 
 class KithcenHandler
 {
@@ -27,7 +28,7 @@ public:
             if (m.name == name && m.remaining > 0)
             {
                 orders.push_back(m); // add food to orders que
-                m.remaining--; // one of stock was used
+                m.remaining--;       // one of stock was used
                 LOG_INFO("kitchen", "%s added to que !\n%i remains !", m.name.c_str(), m.remaining);
                 return true; // response was successful
             }
@@ -39,27 +40,6 @@ public:
 private:
     std::string robot_state_;
 
-    struct Food
-    {
-    public:
-        Food() {};
-        Food(std::string name_, int prepare, int remaining_)
-        {
-            name = name_;
-            preparationTime = prepare;
-            remaining = remaining_;
-        }
-        std::string name;
-        int preparationTime;
-        int remaining;
-    };
-
-    std::vector<Food> menu = {
-        Food("pizza", 15, 2),
-        Food("burger", 5, 3),
-        Food("pasta", 7, 3),
-    };
-
     struct Order
     {
     public:
@@ -67,6 +47,7 @@ private:
         {
             food = food_;
             remaining_time = food_.preparationTime;
+            is_ready = false;
         }
         Food food;
         bool is_ready;
@@ -113,6 +94,8 @@ private:
 
     rclcpp::Subscription<Robot>::SharedPtr robot_state_subscriber_;
     rclcpp::Service<Order>::SharedPtr order_service_;
+
+    // main controller for kitchen
     KithcenHandler kithcenHandler;
 };
 

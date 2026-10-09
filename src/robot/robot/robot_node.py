@@ -3,6 +3,8 @@ from rclpy.node import Node
 
 from interface.msg import Robot
 
+import time
+
 class RobotNode(Node):
 
     def __init__(self):
@@ -11,17 +13,33 @@ class RobotNode(Node):
                                 Robot,
                                 'robot_state',
                                 10)
-        timer_period = 0.5 # second
+        self.timer_period = 0.20 # second
+        self.start_time_ = time.time() # second
+        
         self.timer = self.create_timer(
-                        timer_period,
+                        self.timer_period,
                         self.timer_callback)
         
         self.robot_state_ = "free"
 
     def timer_callback(self):
         msg = Robot()
+        self.robot_state_ = self.handle_robot_state()
         msg.robot_state = self.robot_state_
         self.publisher_.publish(msg)
+    
+    def handle_robot_state(self) -> str:
+        elapsed_time = time.time() - self.start_time_ 
+        
+        state = "free"
+        if(elapsed_time > 2 and elapsed_time < 4):
+            state = "busy"
+        
+        # reset timer
+        if(elapsed_time > 5):
+            self.start_time_ = time.time()
+        
+        return state
 
 def main(args=None):
     rclpy.init(args=args)
