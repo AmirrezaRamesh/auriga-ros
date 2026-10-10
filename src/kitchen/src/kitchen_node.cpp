@@ -2,6 +2,7 @@
 #include "interface/msg/robot.hpp"
 #include "interface/srv/order.hpp"
 #include "interface/srv/food_ready.hpp"
+#include "std_srvs/srv/empty.hpp"
 
 #include <memory>
 #include <string>
@@ -59,11 +60,18 @@ public:
                 }
             }
         }
+
+        if (menu.empty())
+        {
+            is_close = true;
+        }
     }
+
     void set_robot_state(std::string state)
     {
         robot_state_ = state;
     }
+
     std::string get_robot_state()
     {
         return robot_state_;
@@ -71,17 +79,23 @@ public:
 
     bool get_order(std::string name)
     {
-        for (auto &m : menu)
+        for (size_t i = 0; i < menu.size(); i++)
         {
+            auto m = menu.at(i);
             if (m.name == name && m.remaining > 0)
             {
-                orders.push_back(m); // add food to orders que
-                m.remaining--;       // one of stock was used
-                LOG_INFO("kitchen", "%s added to que !\n%f remains !", m.name.c_str(), m.remaining);
+                LOG_INFO("kitchen", "%s added to kitchen's que !", m.name.c_str());
+                orders.push_back(menu.at(i)); // add food to orders que
+                menu.at(i).remaining--;       // one of stock was used
+                if (menu.at(i).remaining <= 0)
+                {
+                    LOG_INFO("kitchen", "we are out of %s from now!", m.name.c_str());
+                    menu.erase(menu.begin() + i);
+                }
                 return true; // response was successful
             }
         }
-        LOG_INFO("kitchen", "there was a no successful order !!!");
+        LOG_INFO("kitchen", "sory robot we can not provide this order !!!");
         return false;
     }
 
@@ -95,6 +109,11 @@ public:
         return has_ready_food;
     }
 
+    bool get_is_close()
+    {
+        return is_close;
+    }
+
 private:
     std::string robot_state_;
 
@@ -103,6 +122,8 @@ private:
 
     bool has_ready_food = false;
     OrderInfo ready_food_info;
+
+    bool is_close = false;
 };
 
 using std::placeholders::_1;
@@ -110,6 +131,7 @@ using std::placeholders::_2;
 using Robot = interface::msg::Robot;
 using Order = interface::srv::Order;
 using FoodReady = interface::srv::FoodReady;
+using Empty = std_srvs::srv::Empty;
 
 class KitchenNode : public rclcpp::Node
 {
@@ -135,6 +157,9 @@ public:
 
         food_ready_client_ = this->create_client<FoodReady>(
             "food_ready");
+
+        closing_client_ = this->create_client<Empty>(
+            "closing");
     }
 
 private:
@@ -144,11 +169,16 @@ private:
 
         if (kithcenHandler.get_has_food_ready())
         {
-            send_request(kithcenHandler.get_ready_food_info().food.name);
+            send_food_ready_request(kithcenHandler.get_ready_food_info().food.name);
+        }
+
+        if (kithcenHandler.get_is_close())
+        {
+            send_closing_request();
         }
     }
 
-    void send_request(std::string name)
+    void send_food_ready_request(std::string name)
     {
         if (!food_ready_client_->service_is_ready())
         {
@@ -158,9 +188,22 @@ private:
 
         auto request = std::make_shared<FoodReady::Request>();
         request->name = name;
-        std::string sent_name = request->name;
 
         food_ready_client_->async_send_request(
+            request);
+    }
+
+    void send_closing_request()
+    {
+        if (!closing_client_->service_is_ready())
+        {
+            RCLCPP_WARN(this->get_logger(), "Waiting for closing service...");
+            return;
+        }
+
+        auto request = std::make_shared<Empty::Request>();
+
+        closing_client_->async_send_request(
             request);
     }
 
@@ -178,6 +221,7 @@ private:
     rclcpp::Subscription<Robot>::SharedPtr robot_state_subscriber_;
     rclcpp::Service<Order>::SharedPtr order_service_;
     rclcpp::Client<FoodReady>::SharedPtr food_ready_client_;
+    rclcpp::Client<Empty>::SharedPtr closing_client_;
     rclcpp::TimerBase::SharedPtr timer_;
     int timer_period_ms = 200;
 

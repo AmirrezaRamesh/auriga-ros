@@ -3,12 +3,17 @@
 
 #include "rclcpp/rclcpp.hpp"
 #include "interface/srv/order.hpp"
+#include "std_srvs/srv/empty.hpp"
+
 #include "../../kitchen/include/kitchen/Menu.hpp"
-#include "../../kitchen/include/kitchen/Logger.hpp"
 
 using namespace std::chrono_literals;
 
 using Order = interface::srv::Order;
+using Empty = std_srvs::srv::Empty;
+
+using std::placeholders::_1;
+using std::placeholders::_2;
 
 class CustomerNode : public rclcpp::Node
 {
@@ -22,6 +27,10 @@ public:
     timer_ = this->create_wall_timer(
         std::chrono::seconds(5),
         std::bind(&CustomerNode::timer_callback, this));
+
+    closing_service_ = this->create_service<Empty>(
+        "closing",
+        std::bind(&CustomerNode::closing_service_callback, this, _1, _2));
   }
 
   void send_request(std::string name)
@@ -43,7 +52,7 @@ public:
           auto response = future.get();
           if (!response->success)
           {
-            RCLCPP_INFO(this->get_logger(), "oh sorry we can not provide your order please order something else ...!");
+            RCLCPP_INFO(this->get_logger(), "kithen can not provide this order !");
           }
         });
   }
@@ -54,27 +63,37 @@ public:
     auto order = menu.at(order_counter_);
     order_counter_ = (order_counter_ + 1) % menu.size();
 
-    // order was finished !
-    while (order.remaining <= 0)
-    {
-      RCLCPP_WARN(this->get_logger(), "sorry we are out of item %s !", order.name.c_str());
-      order = menu.at(order_counter_);
-      order_counter_ = (order_counter_ + 1) % menu.size();
-    }
-
     return order.name;
   }
 
 private:
   void timer_callback()
   {
-    send_request(get_order());
+    if (!is_close)
+    {
+      send_request(get_order());
+    }
+    else
+    {
+      RCLCPP_WARN_ONCE(this->get_logger(), "closing the restaurant !!!");
+    }
+  }
+
+  void closing_service_callback(
+      const std::shared_ptr<Empty::Request> request,
+      std::shared_ptr<Empty::Response> response)
+  {
+    (void)request;
+    (void)response;
+    is_close = true;
   }
 
   rclcpp::Client<Order>::SharedPtr order_client_;
   rclcpp::TimerBase::SharedPtr timer_;
+  rclcpp::Service<Empty>::SharedPtr closing_service_;
 
   int order_counter_ = 0;
+  bool is_close = false;
 };
 
 int main(int argc, char *argv[])

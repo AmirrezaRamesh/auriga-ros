@@ -9,14 +9,17 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(interface REQUIRED)
+find_package(std_srvs REQUIRED)
 
 
 add_executable(customer
   src/customer.cpp
+  ../kitchen/src/Menu.cpp
 )
 ament_target_dependencies(customer
   rclcpp
   interface
+  std_srvs
 )
 
 install(TARGETS
