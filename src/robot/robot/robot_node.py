@@ -2,6 +2,7 @@ import rclpy
 from rclpy.node import Node
 
 from interface.msg import Robot
+from interface.srv import FoodReady
 
 import time
 
@@ -21,6 +22,11 @@ class RobotNode(Node):
                         self.timer_callback)
         
         self.robot_state_ = "free"
+        self.food_recieve_service_ = self.create_service(
+            FoodReady,
+            "food_ready",
+            self.food_recieve_callback
+        )
 
     def timer_callback(self):
         msg = Robot()
@@ -40,6 +46,10 @@ class RobotNode(Node):
             self.start_time_ = time.time()
         
         return state
+
+    def food_recieve_callback(self, request, response):
+        self.get_logger().info(f"order {request.name} was delivered !")
+        return response
 
 def main(args=None):
     rclpy.init(args=args)

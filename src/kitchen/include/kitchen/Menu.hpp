@@ -16,7 +16,7 @@ public:
     }
     std::string name;
     int preparationTime;
-    int remaining;
+    float remaining;
 };
 
 std::vector<Food> menu = {

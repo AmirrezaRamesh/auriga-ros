@@ -51,17 +51,18 @@ public:
   // change order every loop
   std::string get_order()
   {
-    std::string order_name = menu.at(order_counter_).name;
+    auto order = menu.at(order_counter_);
+    order_counter_ = (order_counter_ + 1) % menu.size();
 
     // order was finished !
-    while (menu.at(order_counter_).remaining <= 0)
+    while (order.remaining <= 0)
     {
-      RCLCPP_WARN(this->get_logger(), "sorry we are out of item %s !", order_name.c_str());
+      RCLCPP_WARN(this->get_logger(), "sorry we are out of item %s !", order.name.c_str());
+      order = menu.at(order_counter_);
       order_counter_ = (order_counter_ + 1) % menu.size();
-      order_name = menu.at(order_counter_).name;
     }
 
-    return order_name;
+    return order.name;
   }
 
 private:
