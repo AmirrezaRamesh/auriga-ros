@@ -27,7 +27,7 @@ class kitchen_node : public rclcpp::Node{
     );
 
 
-        state_subscription_ = this->create_subscription<std_msgs::msg::String>("robot_state", 10, [this](std_msgs::msg::String::SharedPtr message){
+        state_subscription_ = this->create_subscription<std_msgs::msg::String>("robot_state", rclcpp::QoS(1).transient_local(), [this](std_msgs::msg::String::SharedPtr message){
                 robot_is_free_ = (message->data == "FREE");
 
                 RCLCPP_INFO(this->get_logger(), "Robot state received: %s", message->data.c_str());
@@ -88,7 +88,7 @@ private:
     void process_order(const std::string & order)
     {
         if (!restaurant_open_) {
-            RCLCPP_WARN(this->get_logger(), "Restaurant is closed. Order rejected.");
+            RCLCPP_WARN(this->get_logger(), "Restaurant is closed. Order rejected." , order.c_str());
             return;
         }
 

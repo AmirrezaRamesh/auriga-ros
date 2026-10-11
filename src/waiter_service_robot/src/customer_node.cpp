@@ -67,11 +67,10 @@ private:
                 auto response = future.get();
 
                 if (!response->success) {
-                    RCLCPP_WARN(
-                        this->get_logger(),
-                        "Restaurant is closed. No new order sent.");
+                    timer_->cancel();
+                    RCLCPP_WARN(this->get_logger(),"Restaurant is closed. Customer stopped ordering.");
                     return;
-                }
+            }
 
                 auto message = std_msgs::msg::String();
 
