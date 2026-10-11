@@ -2,11 +2,12 @@
 #include "std_msgs/msg/string.hpp"
 #include "std_srvs/srv/trigger.hpp"
 
+#include <array>
 #include <chrono>
 #include <functional>
 #include <memory>
+#include <random>
 #include <string>
-#include <array>
 
 using namespace std::chrono_literals;
 
@@ -38,7 +39,8 @@ private:
     rclcpp::Client<std_srvs::srv::Trigger>::SharedPtr
         food_available_client_;
 
-    rclcpp::TimerBase::SharedPtr timer_;
+    rclcpp::TimerBase::SharedPtr timer_;        
+    rclcpp::TimerBase::SharedPtr order_timer_; 
 
     std::array<std::string, 3> tables_ = {
         "Table 1", "Table 2", "Table 3"
@@ -47,7 +49,11 @@ private:
     std::array<std::string, 3> foods_ = {
         "Pizza", "Burger", "Pasta"
     };
-    int order_index_ = 0;
+
+    std::mt19937 rng_{std::random_device{}()};
+    std::uniform_int_distribution<int> index_dist_{0, 2};
+    std::uniform_real_distribution<double> delay_dist_{0.2, 0.9};
+
     void publish_order()
     {
         if (!food_available_client_->service_is_ready()) {
@@ -68,25 +74,36 @@ private:
 
                 if (!response->success) {
                     timer_->cancel();
-                    RCLCPP_WARN(this->get_logger(),"Restaurant is closed. Customer stopped ordering.");
+                    RCLCPP_WARN(
+                        this->get_logger(),
+                        "Restaurant is closed. Customer stopped ordering.");
                     return;
-            }
+                }
 
-                auto message = std_msgs::msg::String();
-
-                message.data =
-                    tables_[order_index_] +
+                std::string order =
+                    tables_[index_dist_(rng_)] +
                     " requests " +
-                    foods_[order_index_];
+                    foods_[index_dist_(rng_)];
 
-                publisher_->publish(message);
+                auto delay =
+                    std::chrono::duration_cast<std::chrono::nanoseconds>(
+                        std::chrono::duration<double>(delay_dist_(rng_)));
 
-                RCLCPP_INFO(
-                    this->get_logger(),
-                    "Published order: %s",
-                    message.data.c_str());
+                order_timer_ = this->create_wall_timer(
+                    delay,
+                    [this, order]()
+                    {
+                        order_timer_->cancel();
 
-                order_index_ = (order_index_ + 1) % 3;
+                        auto message = std_msgs::msg::String();
+                        message.data = order;
+                        publisher_->publish(message);
+
+                        RCLCPP_INFO(
+                            this->get_logger(),
+                            "Published order: %s",
+                            message.data.c_str());
+                    });
             });
     }
 };
