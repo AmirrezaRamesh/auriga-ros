@@ -18,14 +18,19 @@ class kitchen_node : public rclcpp::Node{
         stock_["Pizza"] = 2;
         stock_["Burger"] = 3;
         stock_["Pasta"] = 3;
+
         food_publisher_ = this->create_publisher<std_msgs::msg::String>("food_ready", 10);
-        order_subscription_ = this->create_subscription<std_msgs::msg::String>("order", 10, [this](std_msgs::msg::String::SharedPtr message){
-                process_order(message->data);
-            }
-        );
+        order_subscription_ =
+        this->create_subscription<std_msgs::msg::String>("kitchen_order", 10,[this](std_msgs::msg::String::SharedPtr message){
+            process_order(message->data);
+        }
+    );
+
 
         state_subscription_ = this->create_subscription<std_msgs::msg::String>("robot_state", 10, [this](std_msgs::msg::String::SharedPtr message){
                 robot_is_free_ = (message->data == "FREE");
+
+                RCLCPP_INFO(this->get_logger(), "Robot state received: %s", message->data.c_str());
                 if (robot_is_free_)
                     dispatch_food();
             }
@@ -67,9 +72,11 @@ private:
 
     std::map<std::string, int> stock_;
     std::deque<std::string> ready_food_;
+
     bool robot_is_free_ = false;
     bool restaurant_open_ = true;
     int next_timer_id_ = 0;
+
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr food_publisher_;
     rclcpp::Subscription<std_msgs::msg::String>::SharedPtr order_subscription_;
     rclcpp::Subscription<std_msgs::msg::String>::SharedPtr state_subscription_;
@@ -84,7 +91,9 @@ private:
             RCLCPP_WARN(this->get_logger(), "Restaurant is closed. Order rejected.");
             return;
         }
+
         std::string food;
+
         if (order.find("Pizza") != std::string::npos)
             food = "Pizza";
         else if (order.find("Burger") != std::string::npos)
@@ -124,12 +133,14 @@ private:
         RCLCPP_INFO(this->get_logger(), "Preparing %s (%d seconds)", food.c_str(), preparation_time);
         show_stock();
         int timer_id = next_timer_id_++;
+
         preparation_timers_[timer_id] = this->create_wall_timer(
             std::chrono::seconds(preparation_time),
             [this, food, order, timer_id]() {
                 preparation_timers_[timer_id]->cancel();
                 RCLCPP_INFO(this->get_logger(), "%s is ready!", food.c_str());
                 ready_food_.push_back("Food: " + food + " | Order: " + order);
+                RCLCPP_INFO(this->get_logger(), "Food added to delivery queue. Queue size: %zu", ready_food_.size());
                 dispatch_food();
             }
         );
@@ -143,15 +154,20 @@ private:
 
     void dispatch_food()
     {
-        if (!robot_is_free_ || ready_food_.empty())
+        if (!robot_is_free_) {
+            RCLCPP_INFO(this->get_logger(), "Robot is busy. Prepared food will wait.");
+            return;
+        }
+
+        if (ready_food_.empty())
             return;
 
         auto message = std_msgs::msg::String();
         message.data = ready_food_.front();
+        robot_is_free_ = false;
         food_publisher_->publish(message);
         RCLCPP_INFO(this->get_logger(), "Sending food to robot: %s", message.data.c_str());
         ready_food_.pop_front();
-        robot_is_free_ = false;
     }
 
     void show_stock()
