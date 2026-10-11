@@ -15,7 +15,7 @@ public:
     {
         state_publisher_ =
             this->create_publisher<std_msgs::msg::String>(
-                "robot_state", 10);
+                "robot_state", rclcpp::QoS(1).transient_local());
 
         kitchen_order_publisher_ =
             this->create_publisher<std_msgs::msg::String>(
@@ -70,9 +70,15 @@ private:
     std::deque<std::string> food_queue_;
 
     bool robot_is_busy_ = false;
+    std::string current_state_;
 
     void publish_state(const std::string & state)
     {
+        if (state == current_state_)
+            return;
+
+        current_state_ = state;
+
         auto message = std_msgs::msg::String();
         message.data = state;
 
@@ -152,9 +158,10 @@ private:
                 }
 
                 robot_is_busy_ = false;
-                publish_state("FREE");
-
                 process_next_task();
+
+                if (!robot_is_busy_)
+                    publish_state("FREE");
             });
     }
 };
