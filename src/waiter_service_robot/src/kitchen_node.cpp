@@ -88,7 +88,7 @@ private:
     void process_order(const std::string & order)
     {
         if (!restaurant_open_) {
-            RCLCPP_WARN(this->get_logger(), "Restaurant is closed. Order rejected." , order.c_str());
+            RCLCPP_WARN(this->get_logger(), "Restaurant is closed. Order rejected: %s", order.c_str());
             return;
         }
 

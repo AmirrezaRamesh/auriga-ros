@@ -84,17 +84,16 @@ ros2 topic echo /robot_state --qos-durability transient_local --qos-reliability 
 5. When the food is ready, the kitchen checks the last robot state. If FREE, it publishes `/food_ready`. If BUSY, the food waits in the kitchen queue until the next FREE.
 6. The robot goes BUSY for 2 s while it "delivers" (a log line) and goes FREE again.
 
-+
 
 ### Rules implemented
 
-- **Stock check and substitution:** if the ordered food has stock 0, the kitchen replaces it in this order: Burger, Pasta, Pizza (the first with stock). The substituted food is marked in the delivery message.
+- **Stock check and substitution:** if the ordered food has stock 0, the kitchen replaces it in this order: Burger, Pasta, Pizza (the first with stock). The delivery message shows both the food that was actually cooked and the original order, for example Food: Pasta | Order: Table 3 requests Burger.
 - **Closing:** when the stock of all items is 0, the kitchen closes. `/food_available` then returns `false`, and the customer stops ordering. Food already being cooked is still delivered.
 - **Robot priority:** delivering food comes before taking a new order.
 
-## Edge cases and race conditions
+## Challenges, edge cases and race conditions
 
-- **Long cooking must not block (pizza = 15 s).** No `sleep`. Each order has its own one-shot wall timer, so the kitchen keeps receiving new orders and robot messages while cooking. Finished timers are removed from the map.
+- **Long cooking must not block (pizza = 15 s).** No `sleep`. Each order has its own one-shot wall timer, so the kitchen keeps receiving new orders and robot messages while cooking.
 - **Robot state flicker.** The robot used to publish `FREE` and then `BUSY` a moment later when work was queued, so the kitchen sent food to a robot that was about to be busy. Now the robot publishes a state only when it changes, and `FREE` only if both queues are empty.
 - **Lost first state message.** The robot's first `FREE` was published before the kitchen subscribed and was lost. `/robot_state` now uses transient-local QoS (publisher and subscriber), so the kitchen gets the last state when it connects.
 - **Food arrives while the robot just became busy.** The kitchen decides from the last state it saw, which can be a few milliseconds old. The robot keeps a food queue, so nothing is lost; the food is delivered after the current task.
