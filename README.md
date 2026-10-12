@@ -24,10 +24,11 @@ Stop with `Ctrl+C`.
 Manual checks (in a second terminal, after `source install/setup.bash`):
 
 ```bash
+rqt_graph
 ros2 service call /food_available std_srvs/srv/Trigger
 ros2 service call /close_restaurant std_srvs/srv/SetBool "{data: true}"
 ros2 topic echo /robot_state --qos-durability transient_local --qos-reliability reliable
-rqt_graph
+
 ```
 
 ## Menu
