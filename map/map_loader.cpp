@@ -17,9 +17,9 @@ class MapLoader : public rclcpp::Node
 public:
   MapLoader() : Node("map_loader")
   {
-    map_file_   = "map.txt"
-    frame_id_   = "map"
-    resolution_ = "1.0"
+    map_file_ = "/home/amir/ROS/src/cpp_parameters/src/map.txt";
+    frame_id_   = "map";
+    resolution_ = 1.0;
 
     auto qos = rclcpp::QoS(rclcpp::KeepLast(1)).reliable().transient_local();
     pub_ = create_publisher<nav_msgs::msg::OccupancyGrid>("/map", qos);

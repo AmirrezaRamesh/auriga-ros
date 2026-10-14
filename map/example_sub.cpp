@@ -1,9 +1,3 @@
-// example_sub.cpp
-// Subscribes to /map (transient_local so we get the already-published map),
-// then copies it into a 2D vector: grid[y][x].
-//
-// Values: 0 = free, 100 = occupied, -1 = unknown.
-
 #include <string>
 #include <vector>
 
@@ -15,7 +9,6 @@ class MapSubscriber : public rclcpp::Node
 public:
   MapSubscriber() : Node("example_sub")
   {
-    // Must match the publisher: reliable + transient_local.
     auto qos = rclcpp::QoS(rclcpp::KeepLast(1)).reliable().transient_local();
 
     sub_ = create_subscription<nav_msgs::msg::OccupancyGrid>(
@@ -29,14 +22,6 @@ private:
     const size_t width = msg->info.width;
     const size_t height = msg->info.height;
 
-    // Sanity check before indexing.
-    if (msg->data.size() != width * height) {
-      RCLCPP_ERROR(get_logger(), "Map size mismatch: %zu cells for %zux%zu",
-                   msg->data.size(), width, height);
-      return;
-    }
-
-    // Resize to [height][width] and fill (row-major: index = y * width + x).
     grid_.assign(height, std::vector<int8_t>(width, -1));
     for (size_t y = 0; y < height; ++y) {
       for (size_t x = 0; x < width; ++x) {
