@@ -1,0 +1,5 @@
+uint64 session_id
+int32 order_id
+int32 table_id
+string food
+int32 quantity
