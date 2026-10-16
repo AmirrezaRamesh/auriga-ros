@@ -1,10 +1,3 @@
-// map_loader.cpp
-// Reads a text file of 0/1 characters (20x20) and publishes it once on /map
-// as a nav_msgs/OccupancyGrid. Uses transient_local QoS so late subscribers
-// still receive the map.
-//
-// Run:  ros2 run <your_pkg> map_loader --ros-args -p map_file:=/path/to/map.txt
-
 #include <fstream>
 #include <string>
 #include <vector>
