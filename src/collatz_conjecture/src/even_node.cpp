@@ -39,7 +39,7 @@ class EvenNode : public rclcpp::Node
         message.data = number_;
         RCLCPP_INFO(this->get_logger(), "Even node Publishing: '%ld'", message.data);
         publisher_->publish(message);
-      }else if(number_ > 1 && number_ % 2 == 0){
+      }else if(number_ > 1 && number_ % 2 != 0){
          RCLCPP_INFO(this->get_logger(), "The Even number is Odd now  : '%ld'", number_);
       RCLCPP_INFO(this->get_logger(), "Even node Publishing: '%ld'", message.data);
       publisher_->publish(message);
