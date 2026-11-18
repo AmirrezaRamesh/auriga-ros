@@ -21,8 +21,15 @@ add_executable(even_node src/even_node.cpp)
 ament_target_dependencies(even_node rclcpp std_msgs)
 
 install(TARGETS
+
   odd_node
   even_node
-  DESTINATION lib/${PROJECT_NAME})
+  DESTINATION lib/${PROJECT_NAME}
+  )
+  install(
+    DIRECTORY launch
+    DESTINATION share/${PROJECT_NAME}
+)
+
 
 ament_package()
